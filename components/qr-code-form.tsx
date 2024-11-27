@@ -4,24 +4,33 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { QrCode, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { QrCode, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRCodeDisplay } from './qr-code-display';
-import { processUrl, sanitizeUrl } from '@/lib/qr-code';
-import { fetchWithErrorHandling } from '@/lib/api';
-import type { QRCodeResponse } from '@/types/qr-code';
 
 export function QRCodeForm() {
-  const [url, setUrl] = useState('');
+  const [type, setType] = useState<string>('url'); // Default type is URL
+  const [formData, setFormData] = useState<any>({});
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setType(e.target.value);
+    setFormData({});
+    setQrCode(null); // Reset QR code when type changes
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (qrCode) setQrCode(null);
+  };
+
   const generateQRCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const sanitizedUrl = sanitizeUrl(url);
-    if (!sanitizedUrl) {
-      toast.error('Please enter a URL');
+
+    // Validate inputs based on type
+    if (!formData || Object.keys(formData).length === 0) {
+      toast.error('Please fill in all required fields.');
       return;
     }
 
@@ -29,14 +38,12 @@ export function QRCodeForm() {
     setQrCode(null);
 
     try {
-      const processedUrl = processUrl(sanitizedUrl);
-      
       const response = await fetch('/api/qrcode', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: processedUrl }),
+        body: JSON.stringify({ type, data: formData }),
       });
 
       const data = await response.json();
@@ -59,35 +66,226 @@ export function QRCodeForm() {
     }
   };
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUrl(e.target.value);
-    if (qrCode) setQrCode(null);
-  };
-
   return (
     <Card className="w-full max-w-md p-6 space-y-6">
       <form onSubmit={generateQRCode} className="space-y-4">
         <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <LinkIcon className="w-4 h-4 text-gray-500" />
+          {/* Dropdown to select QR code type */}
+          <select
+            value={type}
+            onChange={handleTypeChange}
+            className="w-full border border-gray-300 rounded-md p-2"
+            disabled={loading}
+          >
+            <option value="url">Website/URL</option>
+            <option value="email">Email</option>
+            <option value="text">Text</option>
+            <option value="phone">Phone</option>
+            <option value="wifi">WiFi</option>
+            <option value="sms">SMS</option>
+            <option value="crypto">Crypto Wallet</option>
+            <option value="vcard">vCard</option>
+            <option value="location">Location</option>
+          </select>
+
+          {/* Dynamic input fields based on selected type */}
+          {type === 'url' && (
             <Input
               type="text"
-              placeholder="Enter URL (e.g., example.com)"
-              value={url}
-              onChange={handleUrlChange}
-              className="flex-1"
+              placeholder="Enter URL"
+              name="url"
+              value={formData.url || ''}
+              onChange={handleInputChange}
               disabled={loading}
             />
-          </div>
-          <p className="text-sm text-gray-500">
-            Enter a URL with or without http(s)://
-          </p>
+          )}
+
+          {type === 'email' && (
+            <>
+              <Input
+                type="email"
+                placeholder="Enter Email Address"
+                name="email"
+                value={formData.email || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Subject"
+                name="subject"
+                value={formData.subject || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Message"
+                name="body"
+                value={formData.body || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {type === 'text' && (
+            <Input
+              type="text"
+              placeholder="Enter Text"
+              name="text"
+              value={formData.text || ''}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
+          )}
+
+          {type === 'phone' && (
+            <Input
+              type="text"
+              placeholder="Enter Phone Number"
+              name="phoneNumber"
+              value={formData.phoneNumber || ''}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
+          )}
+
+          {type === 'wifi' && (
+            <>
+              <Input
+                type="text"
+                placeholder="Enter WiFi SSID"
+                name="ssid"
+                value={formData.ssid || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter WiFi Password"
+                name="password"
+                value={formData.password || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Encryption Type (e.g., WPA)"
+                name="encryption"
+                value={formData.encryption || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {type === 'sms' && (
+            <>
+              <Input
+                type="text"
+                placeholder="Enter Phone Number"
+                name="phoneNumber"
+                value={formData.phoneNumber || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Message"
+                name="message"
+                value={formData.message || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {type === 'crypto' && (
+            <>
+              <Input
+                type="text"
+                placeholder="Enter Wallet Address"
+                name="walletAddress"
+                value={formData.walletAddress || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Amount"
+                name="amount"
+                value={formData.amount || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {type === 'vcard' && (
+            <>
+              <Input
+                type="text"
+                placeholder="Enter Full Name"
+                name="name"
+                value={formData.name || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Organization"
+                name="organization"
+                value={formData.organization || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Phone Number"
+                name="phone"
+                value={formData.phone || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="email"
+                placeholder="Enter Email Address"
+                name="email"
+                value={formData.email || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {type === 'location' && (
+            <>
+              <Input
+                type="text"
+                placeholder="Enter Latitude"
+                name="latitude"
+                value={formData.latitude || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Enter Longitude"
+                name="longitude"
+                value={formData.longitude || ''}
+                onChange={handleInputChange}
+                disabled={loading}
+              />
+            </>
+          )}
         </div>
-        
+
+        {/* Submit Button */}
         <Button
           type="submit"
           className="w-full"
-          disabled={loading || !url.trim()}
+          disabled={loading || Object.keys(formData).length === 0}
         >
           {loading ? (
             <>
@@ -103,6 +301,7 @@ export function QRCodeForm() {
         </Button>
       </form>
 
+      {/* Display the generated QR code */}
       {qrCode && <QRCodeDisplay qrCode={qrCode} />}
     </Card>
   );
