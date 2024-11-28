@@ -26,8 +26,6 @@ export default function Home() {
         <div className="text-center text-sm text-gray-500 dark:text-gray-400">
           <p>
             Scan the generated QR code with any smartphone camera or QR code reader app.
-            Download and share your QR code for use in marketing materials, business cards,
-            or digital displays.
           </p>
         </div>
       </div>
