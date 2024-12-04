@@ -12,12 +12,17 @@ export function QRCodeForm() {
   const [type, setType] = useState<string>('url'); // Default type is URL
   const [formData, setFormData] = useState<any>({});
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [format, setFormat] = useState<'png' | 'jpeg' | 'svg'>('png'); // Default format is PNG
   const [loading, setLoading] = useState(false);
 
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setType(e.target.value);
     setFormData({});
     setQrCode(null); // Reset QR code when type changes
+  };
+
+  const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormat(e.target.value as 'png' | 'jpeg' | 'svg');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,7 +33,6 @@ export function QRCodeForm() {
   const generateQRCode = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate inputs based on type
     if (!formData || Object.keys(formData).length === 0) {
       toast.error('Please fill in all required fields.');
       return;
@@ -43,7 +47,7 @@ export function QRCodeForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ type, data: formData }),
+        body: JSON.stringify({ type, data: formData, format }),
       });
 
       const data = await response.json();
@@ -52,11 +56,7 @@ export function QRCodeForm() {
         throw new Error(data.error || 'Failed to generate QR code');
       }
 
-      if (!data.qrCodeDataUrl) {
-        throw new Error('No QR code data received');
-      }
-
-      setQrCode(data.qrCodeDataUrl);
+      setQrCode(data.qrCodeData);
       toast.success('QR code generated successfully!');
     } catch (error) {
       console.error('Error generating QR code:', error);
@@ -70,7 +70,7 @@ export function QRCodeForm() {
     <Card className="w-full max-w-md p-6 space-y-6">
       <form onSubmit={generateQRCode} className="space-y-4">
         <div className="space-y-2">
-          {/* Dropdown to select QR code type */}
+          {/* QR Code Type */}
           <select
             value={type}
             onChange={handleTypeChange}
@@ -83,12 +83,23 @@ export function QRCodeForm() {
             <option value="phone">Phone</option>
             <option value="wifi">WiFi</option>
             <option value="sms">SMS</option>
-            <option value="crypto">Crypto Wallet</option>
             <option value="vcard">vCard</option>
             <option value="location">Location</option>
           </select>
 
-          {/* Dynamic input fields based on selected type */}
+          {/* QR Code Format */}
+          <select
+            value={format}
+            onChange={handleFormatChange}
+            className="w-full border border-gray-300 rounded-md p-2"
+            disabled={loading}
+          >
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="svg">SVG</option>
+          </select>
+
+          {/* Dynamic input fields based on type */}
           {type === 'url' && (
             <Input
               type="text"
@@ -99,7 +110,6 @@ export function QRCodeForm() {
               disabled={loading}
             />
           )}
-
           {type === 'email' && (
             <>
               <Input
@@ -128,7 +138,6 @@ export function QRCodeForm() {
               />
             </>
           )}
-
           {type === 'text' && (
             <Input
               type="text"
@@ -139,7 +148,6 @@ export function QRCodeForm() {
               disabled={loading}
             />
           )}
-
           {type === 'phone' && (
             <Input
               type="text"
@@ -150,7 +158,6 @@ export function QRCodeForm() {
               disabled={loading}
             />
           )}
-
           {type === 'wifi' && (
             <>
               <Input
@@ -179,7 +186,6 @@ export function QRCodeForm() {
               />
             </>
           )}
-
           {type === 'sms' && (
             <>
               <Input
@@ -200,28 +206,6 @@ export function QRCodeForm() {
               />
             </>
           )}
-
-          {type === 'crypto' && (
-            <>
-              <Input
-                type="text"
-                placeholder="Enter Wallet Address"
-                name="walletAddress"
-                value={formData.walletAddress || ''}
-                onChange={handleInputChange}
-                disabled={loading}
-              />
-              <Input
-                type="text"
-                placeholder="Enter Amount"
-                name="amount"
-                value={formData.amount || ''}
-                onChange={handleInputChange}
-                disabled={loading}
-              />
-            </>
-          )}
-
           {type === 'vcard' && (
             <>
               <Input
@@ -258,7 +242,6 @@ export function QRCodeForm() {
               />
             </>
           )}
-
           {type === 'location' && (
             <>
               <Input
@@ -281,12 +264,7 @@ export function QRCodeForm() {
           )}
         </div>
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={loading || Object.keys(formData).length === 0}
-        >
+        <Button type="submit" disabled={loading} className="w-full justify-center">
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -301,8 +279,7 @@ export function QRCodeForm() {
         </Button>
       </form>
 
-      {/* Display the generated QR code */}
-      {qrCode && <QRCodeDisplay qrCode={qrCode} />}
+      {qrCode && <QRCodeDisplay qrCode={qrCode} format={format} />}
     </Card>
   );
 }

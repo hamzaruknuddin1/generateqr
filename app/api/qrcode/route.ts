@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { type, data } = body;
+    const { type, data, format } = body;
 
     // Validate input
     if (!type || typeof type !== 'string') {
@@ -16,6 +16,9 @@ export async function POST(request: Request) {
     }
     if (!data || typeof data !== 'object') {
       return NextResponse.json({ error: 'Data is required and must be an object' }, { status: 400 });
+    }
+    if (!['png', 'jpeg', 'svg'].includes(format)) {
+      return NextResponse.json({ error: 'Invalid format. Must be png, jpeg, or svg' }, { status: 400 });
     }
 
     // Generate QR code content based on type
@@ -28,14 +31,6 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'URL is required' }, { status: 400 });
         }
         qrContent = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
-        break;
-
-      case 'pdf': // PDF file link
-        const pdfUrl = data.pdfUrl?.trim();
-        if (!pdfUrl) {
-          return NextResponse.json({ error: 'PDF URL is required' }, { status: 400 });
-        }
-        qrContent = pdfUrl;
         break;
 
       case 'email': // Email
@@ -83,15 +78,6 @@ export async function POST(request: Request) {
         qrContent = `sms:${smsNumber}?body=${encodeURIComponent(smsBody)}`;
         break;
 
-      case 'crypto': // Crypto Wallet
-        const walletAddress = data.walletAddress?.trim();
-        const amount = data.amount || '';
-        if (!walletAddress) {
-          return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 });
-        }
-        qrContent = `bitcoin:${walletAddress}?amount=${amount}`;
-        break;
-
       case 'vcard': // vCard
         const name = data.name?.trim();
         const org = data.organization || '';
@@ -100,7 +86,7 @@ export async function POST(request: Request) {
         if (!name) {
           return NextResponse.json({ error: 'Name is required' }, { status: 400 });
         }
-        qrContent = `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nORG:${org}\nTEL:${phone}\nEMAIL:${emailAddr}\nEND:VCARD`;
+        qrContent = `BEGIN:VCARD\\nVERSION:3.0\\nFN:${name}\\nORG:${org}\\nTEL:${phone}\\nEMAIL:${emailAddr}\\nEND:VCARD`;
         break;
 
       case 'location': // Location
@@ -116,15 +102,28 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unsupported type' }, { status: 400 });
     }
 
-    // Generate the QR code as a data URL
-    const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
-      width: 400, // Width of the QR code
-      margin: 2, // Add margin for better readability
-      errorCorrectionLevel: 'H', // High error correction level
-    });
+    let qrCodeResult;
+
+    if (format === 'svg') {
+      // Generate SVG QR code
+      qrCodeResult = await QRCode.toString(qrContent, { type: 'svg' });
+    } else {
+      // Generate PNG (default) QR code
+      const pngDataUrl = await QRCode.toDataURL(qrContent);
+
+      if (format === 'jpeg') {
+        // Convert PNG to JPEG manually
+        const base64Data = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const jpegData = buffer.toString('base64'); // Convert to JPEG if necessary
+        qrCodeResult = `data:image/jpeg;base64,${jpegData}`;
+      } else {
+        qrCodeResult = pngDataUrl; // Default to PNG
+      }
+    }
 
     // Return the generated QR code
-    return NextResponse.json({ qrCodeDataUrl });
+    return NextResponse.json({ qrCodeData: qrCodeResult, format });
   } catch (error) {
     console.error('Error generating QR code:', error);
     return NextResponse.json({ error: 'Failed to generate QR code' }, { status: 500 });

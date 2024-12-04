@@ -2,17 +2,36 @@
 
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { downloadQRCode } from '@/lib/qr-code';
 import { toast } from 'sonner';
 
 interface QRCodeDisplayProps {
   qrCode: string;
+  format: 'png' | 'jpeg' | 'svg';
 }
 
-export function QRCodeDisplay({ qrCode }: QRCodeDisplayProps) {
+export function QRCodeDisplay({ qrCode, format }: QRCodeDisplayProps) {
   const handleDownload = () => {
     try {
-      downloadQRCode(qrCode);
+      if (format === 'svg') {
+        // Convert the SVG string to a Blob for download
+        const blob = new Blob([qrCode], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `qrcode.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Handle PNG and JPEG download
+        const link = document.createElement('a');
+        link.href = qrCode;
+        link.download = `qrcode.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
       toast.success('QR code downloaded successfully');
     } catch (error) {
       toast.error('Failed to download QR code');
@@ -20,21 +39,18 @@ export function QRCodeDisplay({ qrCode }: QRCodeDisplayProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-center p-4 bg-white rounded-lg">
-        <img
-          src={qrCode}
-          alt="Generated QR Code"
+    <div className="flex flex-col items-center space-y-4">
+      {format === 'svg' ? (
+        <div
           className="w-64 h-64"
+          dangerouslySetInnerHTML={{ __html: qrCode }}
         />
-      </div>
-      <Button
-        onClick={handleDownload}
-        variant="outline"
-        className="w-full"
-      >
+      ) : (
+        <img src={qrCode} alt="Generated QR Code" className="w-64 h-64" />
+      )}
+      <Button onClick={handleDownload} className="w-full">
         <Download className="w-4 h-4 mr-2" />
-        Download QR Code
+        Download as {format.toUpperCase()}
       </Button>
     </div>
   );
